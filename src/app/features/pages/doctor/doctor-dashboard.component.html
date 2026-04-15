@@ -1,0 +1,80 @@
+<section class="container admin-shell">
+  <div class="hero-banner">
+    <div>
+      <span class="hero-kicker">Doctor Workspace</span>
+      <h1 class="page-title" style="margin-bottom: 10px;">Welcome, Dr. {{ doctorLabel() }}</h1>
+      <p class="page-subtitle" style="margin-bottom: 0; max-width: 720px;">
+        Review appointments and the patients assigned to your specialization. Your dashboard now loads automatically using your login email.
+      </p>
+    </div>
+  </div>
+
+  <div class="alert success" *ngIf="message">{{ message }}</div>
+  <div class="alert error" *ngIf="error">{{ error }}</div>
+
+  <div class="grid grid-4 dashboard-stats">
+    <app-stat-card label="Doctor ID" [value]="doctorId || 0" hint="Mapped from your login account"></app-stat-card>
+    <app-stat-card label="Appointments" [value]="appointments.length" hint="All appointments assigned to you"></app-stat-card>
+    <app-stat-card label="Patients" [value]="patients.length" hint="Patients matched by specialization"></app-stat-card>
+    <app-stat-card label="Completed" [value]="completedCount()" hint="Visits closed by you"></app-stat-card>
+  </div>
+
+  <div class="card panel-card" style="margin-bottom: 18px;">
+    <div class="toolbar"><h3 style="margin:0;">Update appointment</h3></div>
+    <form [formGroup]="updateForm" (ngSubmit)="updateAppointment()" class="form-grid">
+      <label>Appointment ID <input type="number" formControlName="appointmentId" /></label>
+      <label>Status
+        <select formControlName="status">
+          <option value="COMPLETED">COMPLETED</option>
+          <option value="IN_PROGRESS">IN_PROGRESS</option>
+          <option value="PENDING">PENDING</option>
+        </select>
+      </label>
+      <label>Doctor comments <input formControlName="doctorComments" /></label>
+      <label>Issue description <input formControlName="issueDescription" /></label>
+      <div class="form-actions">
+        <button class="btn btn-primary" type="submit" [disabled]="updateForm.invalid || !doctorId">Update appointment</button>
+      </div>
+    </form>
+  </div>
+
+  <div class="card panel-card" style="margin-bottom: 18px;">
+    <div class="toolbar"><h3 style="margin:0;">Assigned patients</h3></div>
+    <div class="table-wrap" *ngIf="patients.length; else noPatients">
+      <table>
+        <thead><tr><th>ID</th><th>Name</th><th>Problem</th><th>Specialization</th><th>Contact</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let patient of patients">
+            <td>{{ patient.id }}</td>
+            <td>{{ patient.patientName }}</td>
+            <td>{{ patient.problem }}</td>
+            <td>{{ patient.specialization }}</td>
+            <td>{{ patient.mobileNumber }}</td>
+            <td>{{ patient.status }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ng-template #noPatients><div class="empty">No assigned patients found.</div></ng-template>
+  </div>
+
+  <div class="card panel-card">
+    <div class="toolbar"><h3 style="margin:0;">Appointments</h3></div>
+    <div class="table-wrap" *ngIf="appointments.length; else noAppointments">
+      <table>
+        <thead><tr><th>ID</th><th>Patient</th><th>Doctor</th><th>Specialization</th><th>Status</th><th>Comments</th></tr></thead>
+        <tbody>
+          <tr *ngFor="let appointment of appointments">
+            <td>{{ appointment.id }}</td>
+            <td>{{ appointment.patientName }}</td>
+            <td>{{ appointment.doctorName }}</td>
+            <td>{{ appointment.specialization }}</td>
+            <td>{{ appointment.status }}</td>
+            <td>{{ appointment.doctorComments || '-' }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ng-template #noAppointments><div class="empty">No appointments assigned yet.</div></ng-template>
+  </div>
+</section>

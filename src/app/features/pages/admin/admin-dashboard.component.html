@@ -1,0 +1,199 @@
+<section class="container admin-shell">
+  <div class="hero-banner">
+    <div>
+      <span class="hero-kicker">Administration Workspace</span>
+      <h1 class="page-title" style="margin-bottom: 10px;">Care operations overview</h1>
+      <p class="page-subtitle" style="margin-bottom: 0; max-width: 720px;">
+        Add doctors and patients, set their login passwords, then generate appointments by specialization. You can leave doctor selection empty to let the backend auto-assign the first active matching doctor.
+      </p>
+    </div>
+  </div>
+
+  <div class="alert success" *ngIf="message">{{ message }}</div>
+  <div class="alert error" *ngIf="error">{{ error }}</div>
+
+  <div class="grid grid-4 dashboard-stats">
+    <app-stat-card label="Doctors" [value]="doctors.length" hint="Profiles available for assignment"></app-stat-card>
+    <app-stat-card label="Patients" [value]="patients.length" hint="Profiles registered in patient service"></app-stat-card>
+    <app-stat-card label="Pending" [value]="pendingCount()" hint="Appointments waiting for completion"></app-stat-card>
+    <app-stat-card label="Completed" [value]="completedCount()" hint="Visits already closed by doctor"></app-stat-card>
+  </div>
+
+  <div class="grid grid-2 admin-top-grid">
+    <div class="card panel-card">
+      <div class="panel-header">
+        <div>
+          <h3>Doctor setup</h3>
+          <p>Create doctor records visible in the matching flow and set a login password so doctors can access assigned patients.</p>
+        </div>
+      </div>
+      <form [formGroup]="doctorForm" (ngSubmit)="createDoctor()" class="form-grid">
+        <label>First name <input formControlName="firstName" /></label>
+        <label>Last name <input formControlName="lastName" /></label>
+        <label>Specialization <input formControlName="specialization" /></label>
+        <label>Qualification <input formControlName="qualification" /></label>
+        <label>Hospital name <input formControlName="hospitalName" /></label>
+        <label>Mobile number <input formControlName="mobileNumber" /></label>
+        <label>Consulting fee <input type="number" formControlName="consultingFee" /></label>
+        <label>Gender <select formControlName="gender"><option>Male</option><option>Female</option></select></label>
+        <label>Address <input formControlName="address" /></label>
+        <label>Email <input type="email" formControlName="email" /></label>
+        <label>Password <input type="password" formControlName="password" placeholder="Create doctor login password" /></label>
+        <label>Status <select formControlName="status"><option>ACTIVE</option><option>INACTIVE</option></select></label>
+        <button class="btn btn-primary" type="submit" [disabled]="doctorForm.invalid">Save Doctor</button>
+      </form>
+    </div>
+
+    <div class="card panel-card">
+      <div class="panel-header">
+        <div>
+          <h3>Patient setup</h3>
+          <p>Register patient details with issue description, specialization, and a login password.</p>
+        </div>
+      </div>
+      <form [formGroup]="patientForm" (ngSubmit)="createPatient()" class="form-grid">
+        <label>Patient name <input formControlName="patientName" /></label>
+        <label>Problem <input formControlName="problem" /></label>
+        <label>Specialization <input formControlName="specialization" /></label>
+        <label>Mobile number <input formControlName="mobileNumber" /></label>
+        <label>Address <input formControlName="address" /></label>
+        <label>Email <input type="email" formControlName="email" /></label>
+        <label>Password <input type="password" formControlName="password" placeholder="Create patient login password" /></label>
+        <label>Gender <select formControlName="gender"><option>Male</option><option>Female</option></select></label>
+        <label>Status <select formControlName="status"><option>ACTIVE</option><option>INACTIVE</option></select></label>
+        <label style="grid-column: 1 / -1;">Issue description <textarea formControlName="issueDescription"></textarea></label>
+        <button class="btn btn-primary" type="submit" [disabled]="patientForm.invalid">Save Patient</button>
+      </form>
+    </div>
+  </div>
+
+  <div class="card panel-card" style="margin-bottom: 20px;">
+    <div class="panel-header panel-header--stack">
+      <div>
+        <h3>Link patient to doctor and generate appointment</h3>
+        <p>Pick a patient, review the specialization, then optionally choose a doctor from the matching list.</p>
+      </div>
+      <div class="inline-tip">Backend auto-assignment works when doctor is left blank.</div>
+    </div>
+
+    <form [formGroup]="appointmentForm" (ngSubmit)="createAppointment()" class="form-grid">
+      <label>
+        Patient
+        <select formControlName="patientId" (change)="onPatientChange()">
+          <option [ngValue]="null">Select patient</option>
+          <option *ngFor="let patient of patients" [ngValue]="patient.id">
+            {{ patient.patientName }} - {{ patient.problem }}
+          </option>
+        </select>
+      </label>
+
+      <label>
+        Specialization
+        <input formControlName="specialization" (input)="onSpecializationChange()" placeholder="Cardiology / Orthopedics / ENT" />
+      </label>
+
+      <label>
+        Matching doctor
+        <select formControlName="doctorId">
+          <option [ngValue]="null">Auto-assign by backend</option>
+          <option *ngFor="let doctor of filteredDoctors" [ngValue]="doctor.id">
+            Dr. {{ doctor.firstName }} {{ doctor.lastName }} - {{ doctor.specialization }}
+          </option>
+        </select>
+      </label>
+
+      <label>
+        Status
+        <select formControlName="status">
+          <option>PENDING</option>
+          <option>COMPLETED</option>
+        </select>
+      </label>
+
+      <label style="grid-column: 1 / -1;">
+        Issue description
+        <textarea formControlName="issueDescription" placeholder="Patient issue details for the appointment"></textarea>
+      </label>
+
+      <button class="btn btn-primary" type="submit" [disabled]="appointmentForm.invalid">Create Appointment</button>
+    </form>
+
+    <div class="assignment-preview" *ngIf="selectedPatient">
+      <div class="assignment-card">
+        <span class="mini-label">Patient</span>
+        <strong>{{ selectedPatient.patientName }}</strong>
+        <div class="mini-meta">{{ selectedPatient.problem }} • {{ selectedPatient.specialization }}</div>
+      </div>
+      <div class="assignment-card">
+        <span class="mini-label">Matched doctors</span>
+        <strong>{{ filteredDoctors.length }}</strong>
+        <div class="mini-meta" *ngIf="filteredDoctors.length; else noMatchDoctors">
+          {{ filteredDoctors[0].firstName }} {{ filteredDoctors[0].lastName }}<span *ngIf="filteredDoctors.length > 1"> + {{ filteredDoctors.length - 1 }} more</span>
+        </div>
+        <ng-template #noMatchDoctors>
+          <div class="mini-meta">No active doctor found for this specialization yet.</div>
+        </ng-template>
+      </div>
+    </div>
+  </div>
+
+  <div class="card panel-card" style="margin-bottom: 18px;">
+    <div class="toolbar"><h3 style="margin:0;">Doctors</h3></div>
+    <div class="table-wrap" *ngIf="doctors.length; else noDoctors">
+      <table>
+        <thead><tr><th>ID</th><th>Name</th><th>Specialization</th><th>Email</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let doctor of doctors">
+            <td>{{ doctor.id }}</td>
+            <td>{{ doctor.firstName }} {{ doctor.lastName }}</td>
+            <td>{{ doctor.specialization }}</td>
+            <td>{{ doctor.email }}</td>
+            <td><span class="badge" [class.active]="doctor.status === 'ACTIVE'" [class.inactive]="doctor.status !== 'ACTIVE'">{{ doctor.status }}</span></td>
+            <td><button class="btn btn-danger" (click)="deleteDoctor(doctor.id)">Delete</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ng-template #noDoctors><div class="empty">No doctors added yet.</div></ng-template>
+  </div>
+
+  <div class="card panel-card" style="margin-bottom: 18px;">
+    <div class="toolbar"><h3 style="margin:0;">Patients</h3></div>
+    <div class="table-wrap" *ngIf="patients.length; else noPatients">
+      <table>
+        <thead><tr><th>ID</th><th>Name</th><th>Problem</th><th>Specialization</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let patient of patients">
+            <td>{{ patient.id }}</td>
+            <td>{{ patient.patientName }}</td>
+            <td>{{ patient.problem }}</td>
+            <td>{{ patient.specialization }}</td>
+            <td><span class="badge" [class.active]="patient.status === 'ACTIVE'" [class.inactive]="patient.status !== 'ACTIVE'">{{ patient.status }}</span></td>
+            <td><button class="btn btn-danger" (click)="deletePatient(patient.id)">Delete</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ng-template #noPatients><div class="empty">No patients added yet.</div></ng-template>
+  </div>
+
+  <div class="card panel-card">
+    <div class="toolbar"><h3 style="margin:0;">Appointments</h3></div>
+    <div class="table-wrap" *ngIf="appointments.length; else noAppointments">
+      <table>
+        <thead><tr><th>ID</th><th>Patient</th><th>Doctor</th><th>Specialization</th><th>Status</th><th></th></tr></thead>
+        <tbody>
+          <tr *ngFor="let appointment of appointments">
+            <td>{{ appointment.id }}</td>
+            <td>{{ appointment.patientName }}</td>
+            <td>{{ appointment.doctorName }}</td>
+            <td>{{ appointment.specialization }}</td>
+            <td><span class="badge" [class.pending]="appointment.status !== 'COMPLETED'" [class.completed]="appointment.status === 'COMPLETED'">{{ appointment.status }}</span></td>
+            <td><button class="btn btn-danger" (click)="deleteAppointment(appointment.id)">Delete</button></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <ng-template #noAppointments><div class="empty">No appointments found.</div></ng-template>
+  </div>
+</section>
